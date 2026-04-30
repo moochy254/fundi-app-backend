@@ -7,6 +7,7 @@ const {
 } = require('../models/bookingModel');
 const pool = require('../config/db');
 const axios = require('axios');
+const { creditWallet } = require('../models/walletModel');
 
 // Helper function to send push notification
 const sendNotification = async (userId, title, body) => {
@@ -16,7 +17,6 @@ const sendNotification = async (userId, title, body) => {
       [userId]
     );
     const pushToken = result.rows[0]?.push_token;
-
     if (!pushToken) return;
 
     await axios.post('https://exp.host/--/api/v2/push/send', {
@@ -32,7 +32,7 @@ const sendNotification = async (userId, title, body) => {
 
 // @desc Client creates a booking
 const makeBooking = async (req, res) => {
-  const { provider_id, category_id, description, location, latitude, longitude, scheduled_at } = req.body;
+  const { provider_id, category_id, description, location, latitude, longitude, scheduled_at, agreed_price } = req.body;
 
   try {
     if (req.user.role !== 'client') {
@@ -47,6 +47,14 @@ const makeBooking = async (req, res) => {
       req.user.id, provider_id, category_id,
       description, location, latitude, longitude, scheduled_at
     );
+
+    // Save agreed price
+    if (agreed_price) {
+      await pool.query(
+        'UPDATE bookings SET agreed_price = $1 WHERE id = $2',
+        [agreed_price, booking.id]
+      );
+    }
 
     // Notify provider
     await sendNotification(
@@ -139,25 +147,25 @@ const updateStatus = async (req, res) => {
       await sendNotification(
         booking.client_id,
         'Booking Accepted!',
-        `Your booking has been accepted by the provider`
+        'Your booking has been accepted by the provider'
       );
     } else if (status === 'in_progress') {
       await sendNotification(
         booking.client_id,
         'Job Started!',
-        `Your service provider is now working on your request`
+        'Your service provider is now working on your request'
       );
     } else if (status === 'completed') {
       await sendNotification(
         booking.client_id,
         'Job Completed!',
-        `Your service has been completed. Please leave a review!`
+        'Your service has been completed. Please confirm to release payment!'
       );
     } else if (status === 'cancelled') {
       await sendNotification(
         booking.provider_id,
         'Booking Cancelled',
-        `A client has cancelled their booking`
+        'A client has cancelled their booking'
       );
     }
 
@@ -168,4 +176,61 @@ const updateStatus = async (req, res) => {
   }
 };
 
-module.exports = { makeBooking, getBooking, myClientBookings, myProviderBookings, updateStatus };
+// @desc Client confirms job completion and releases payment
+const confirmJob = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const booking = await getBookingById(id);
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (booking.client_id !== req.user.id) {
+      return res.status(403).json({ message: 'Only the client can confirm this job' });
+    }
+
+    if (booking.status !== 'completed') {
+      return res.status(400).json({ message: 'Job must be marked completed by provider first' });
+    }
+
+    if (booking.payment_released) {
+      return res.status(400).json({ message: 'Payment already released' });
+    }
+
+    if (!booking.agreed_price || booking.agreed_price <= 0) {
+      return res.status(400).json({ message: 'No agreed price found for this booking' });
+    }
+
+    // Confirm job and release payment
+    await pool.query(
+      `UPDATE bookings SET client_confirmed = true, payment_released = true WHERE id = $1`,
+      [id]
+    );
+
+    // Credit provider wallet (after 5% commission deduction)
+    await creditWallet(booking.provider_id, id, booking.agreed_price);
+
+    // Notify provider
+    await sendNotification(
+      booking.provider_id,
+      'Payment Released!',
+      `Client confirmed job completion. KES ${(booking.agreed_price * 0.95).toFixed(2)} added to your wallet!`
+    );
+
+    res.json({ message: 'Job confirmed and payment released to provider wallet!' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  makeBooking,
+  getBooking,
+  myClientBookings,
+  myProviderBookings,
+  updateStatus,
+  confirmJob
+};

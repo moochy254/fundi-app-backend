@@ -5,7 +5,8 @@ const {
   getBooking,
   myClientBookings,
   myProviderBookings,
-  updateStatus
+  updateStatus,
+  confirmJob
 } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -14,5 +15,6 @@ router.get('/client', protect, myClientBookings);
 router.get('/provider', protect, myProviderBookings);
 router.get('/:id', protect, getBooking);
 router.put('/:id/status', protect, updateStatus);
+router.put('/:id/confirm', protect, confirmJob);
 
 module.exports = router;
