@@ -10,6 +10,7 @@ const bookingRoutes = require('./src/routes/bookingRoutes');
 const reviewRoutes = require('./src/routes/reviewRoutes');
 const paymentRoutes = require('./src/routes/paymentRoutes');
 const walletRoutes = require('./src/routes/walletRoutes');
+const passwordRoutes = require('./src/routes/passwordRoutes');
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/password', passwordRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
