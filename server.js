@@ -15,6 +15,8 @@ const walletRoutes = require('./src/routes/walletRoutes');
 const passwordRoutes = require('./src/routes/passwordRoutes');
 const verificationRoutes = require('./src/routes/verificationRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
+const adminRoutes = require('./src/routes/adminRoutes');
+
 
 const app = express();
 const server = http.createServer(app);
@@ -43,6 +45,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/password', passwordRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Socket.io real-time chat
 io.on('connection', (socket) => {
