@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 require('dotenv').config();
 require('./src/config/db');
 
@@ -12,8 +14,16 @@ const paymentRoutes = require('./src/routes/paymentRoutes');
 const walletRoutes = require('./src/routes/walletRoutes');
 const passwordRoutes = require('./src/routes/passwordRoutes');
 const verificationRoutes = require('./src/routes/verificationRoutes');
+const chatRoutes = require('./src/routes/chatRoutes');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+});
 
 app.use(cors());
 app.use(express.json());
@@ -32,8 +42,59 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/password', passwordRoutes);
 app.use('/api/verification', verificationRoutes);
+app.use('/api/chat', chatRoutes);
+
+// Socket.io real-time chat
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Join a chat room
+  socket.on('join_chat', (chatId) => {
+    socket.join(`chat_${chatId}`);
+    console.log(`User joined chat: ${chatId}`);
+  });
+
+  // Send a message
+  socket.on('send_message', async (data) => {
+    const { chat_id, sender_id, message } = data;
+    try {
+      const pool = require('./src/config/db');
+      const result = await pool.query(
+        `INSERT INTO messages (chat_id, sender_id, message)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [chat_id, sender_id, message]
+      );
+      // Broadcast message to all users in the chat room
+      io.to(`chat_${chat_id}`).emit('receive_message', result.rows[0]);
+    } catch (error) {
+      console.error('Message error:', error);
+    }
+  });
+
+  // Mark messages as read
+  socket.on('mark_read', async (data) => {
+    const { chat_id, user_id } = data;
+    try {
+      const pool = require('./src/config/db');
+      await pool.query(
+        `UPDATE messages SET is_read = true
+         WHERE chat_id = $1 AND sender_id != $2`,
+        [chat_id, user_id]
+      );
+      io.to(`chat_${chat_id}`).emit('messages_read', { chat_id, user_id });
+    } catch (error) {
+      console.error('Mark read error:', error);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
+
+module.exports = { io };
