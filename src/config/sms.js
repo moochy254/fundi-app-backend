@@ -17,16 +17,17 @@ const sendSMS = async (phone, message) => {
       ? `+${phone}`
       : phone;
 
+    console.log('Sending SMS to:', formattedPhone);
+
     const result = await sms.send({
       to: [formattedPhone],
       message,
-      from: 'FundiApp',
     });
 
-    console.log('SMS sent:', result);
+    console.log('SMS result:', JSON.stringify(result));
     return result;
   } catch (error) {
-    console.error('SMS error:', error);
+    console.error('SMS error details:', JSON.stringify(error.response?.data || error.message));
     throw new Error('Failed to send SMS');
   }
 };
