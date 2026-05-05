@@ -1,12 +1,5 @@
-const AfricasTalking = require('africastalking');
 require('dotenv').config();
-
-const africastalking = AfricasTalking({
-  apiKey: process.env.AT_API_KEY,
-  username: process.env.AT_USERNAME,
-});
-
-const sms = africastalking.SMS;
+const axios = require('axios');
 
 const sendSMS = async (phone, message) => {
   try {
@@ -18,16 +11,29 @@ const sendSMS = async (phone, message) => {
       : phone;
 
     console.log('Sending SMS to:', formattedPhone);
+    console.log('Using username:', process.env.AT_USERNAME);
+    console.log('API Key starts with:', process.env.AT_API_KEY?.substring(0, 10));
 
-    const result = await sms.send({
-      to: [formattedPhone],
-      message,
-    });
+    const response = await axios.post(
+      'https://api.sandbox.africastalking.com/version1/messaging',
+      new URLSearchParams({
+        username: process.env.AT_USERNAME,
+        to: formattedPhone,
+        message: message,
+      }).toString(),
+      {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'apiKey': process.env.AT_API_KEY,
+        },
+      }
+    );
 
-    console.log('SMS result:', JSON.stringify(result));
-    return result;
+    console.log('SMS response:', JSON.stringify(response.data));
+    return response.data;
   } catch (error) {
-    console.error('SMS error details:', JSON.stringify(error.response?.data || error.message));
+    console.error('SMS error:', JSON.stringify(error.response?.data || error.message));
     throw new Error('Failed to send SMS');
   }
 };
