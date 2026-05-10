@@ -16,6 +16,7 @@ const passwordRoutes = require('./src/routes/passwordRoutes');
 const verificationRoutes = require('./src/routes/verificationRoutes');
 const chatRoutes = require('./src/routes/chatRoutes');
 const adminRoutes = require('./src/routes/adminRoutes');
+const photoRoutes = require('./src/routes/photoRoutes');
 
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/password', passwordRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/photos', photoRoutes);
 
 // Socket.io real-time chat
 io.on('connection', (socket) => {
