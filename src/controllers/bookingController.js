@@ -49,12 +49,10 @@ const makeBooking = async (req, res) => {
     );
 
     // Save agreed price
-    if (agreed_price) {
-      await pool.query(
-        'UPDATE bookings SET agreed_price = $1 WHERE id = $2',
-        [agreed_price, booking.id]
-      );
-    }
+    await pool.query(
+      'UPDATE bookings SET agreed_price = $1 WHERE id = $2',
+      [agreed_price || 0, booking.id]
+    );
 
     // Notify provider
     await sendNotification(
@@ -63,7 +61,10 @@ const makeBooking = async (req, res) => {
       `You have a new booking request for ${location}`
     );
 
-    res.status(201).json({ message: 'Booking created successfully', booking });
+    res.status(201).json({
+      message: 'Booking created successfully',
+      booking: { ...booking, agreed_price: agreed_price || 0 }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
