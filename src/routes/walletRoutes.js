@@ -25,7 +25,6 @@ router.get('/earnings/summary', protect, async (req, res) => {
       pendingPayments,
       topClients
     ] = await Promise.all([
-      // Today earnings
       pool.query(
         `SELECT COALESCE(SUM(amount), 0) AS total
          FROM wallet_transactions wt
@@ -35,7 +34,6 @@ router.get('/earnings/summary', protect, async (req, res) => {
          AND wt.created_at >= $2`,
         [req.user.id, startOfDay]
       ),
-      // Week earnings
       pool.query(
         `SELECT COALESCE(SUM(amount), 0) AS total
          FROM wallet_transactions wt
@@ -45,7 +43,6 @@ router.get('/earnings/summary', protect, async (req, res) => {
          AND wt.created_at >= $2`,
         [req.user.id, startOfWeek]
       ),
-      // Month earnings
       pool.query(
         `SELECT COALESCE(SUM(amount), 0) AS total
          FROM wallet_transactions wt
@@ -55,19 +52,16 @@ router.get('/earnings/summary', protect, async (req, res) => {
          AND wt.created_at >= $2`,
         [req.user.id, startOfMonth]
       ),
-      // Total earnings
       pool.query(
         `SELECT COALESCE(total_earned, 0) AS total
          FROM wallets WHERE provider_id = $1`,
         [req.user.id]
       ),
-      // Total jobs
       pool.query(
         `SELECT COUNT(*) FROM bookings
          WHERE provider_id = $1 AND status = 'completed'`,
         [req.user.id]
       ),
-      // Pending payments
       pool.query(
         `SELECT COUNT(*) FROM bookings
          WHERE provider_id = $1
@@ -75,7 +69,6 @@ router.get('/earnings/summary', protect, async (req, res) => {
          AND payment_released = false`,
         [req.user.id]
       ),
-      // Top clients
       pool.query(
         `SELECT u.full_name, COUNT(*) AS bookings,
          COALESCE(SUM(b.agreed_price), 0) AS total_spent
@@ -117,3 +110,18 @@ router.get('/earnings/monthly', protect, async (req, res) => {
        FROM wallet_transactions wt
        JOIN wallets w ON wt.wallet_id = w.id
        WHERE w.provider_id = $1
+       AND wt.type = 'credit'
+       AND wt.created_at >= NOW() - INTERVAL '6 months'
+       GROUP BY TO_CHAR(wt.created_at, 'Mon'), TO_CHAR(wt.created_at, 'MM')
+       ORDER BY month_num ASC`,
+      [req.user.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;
