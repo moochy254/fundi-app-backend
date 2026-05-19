@@ -54,11 +54,36 @@ const mpesaCallback = async (req, res) => {
         item => item.Name === 'MpesaReceiptNumber'
       )?.Value;
 
-      await pool.query(
+      // Update payment status
+      const payment = await pool.query(
         `UPDATE payments SET status = 'completed', mpesa_code = $1
-         WHERE checkout_request_id = $2`,
+         WHERE checkout_request_id = $2
+         RETURNING *`,
         [mpesaCode, CheckoutRequestID]
       );
+
+      // Update booking status to paid
+      if (payment.rows[0]) {
+        await pool.query(
+          `UPDATE bookings SET status = 'paid'
+           WHERE id = $1`,
+          [payment.rows[0].booking_id]
+        );
+
+        // Notify provider that payment is received
+        const booking = await pool.query(
+          'SELECT * FROM bookings WHERE id = $1',
+          [payment.rows[0].booking_id]
+        );
+
+        if (booking.rows[0]) {
+          await sendNotification(
+            booking.rows[0].provider_id,
+            'Payment Received!',
+            `Client has paid KES ${payment.rows[0].amount}. You can now start the job!`
+          );
+        }
+      }
 
       console.log('✅ Payment successful:', mpesaCode);
     } else {

@@ -121,7 +121,7 @@ const myProviderBookings = async (req, res) => {
 // @desc Update booking status
 const updateStatus = async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['accepted', 'in_progress', 'completed', 'cancelled'];
+  const validStatuses = ['accepted','paid','in_progress', 'completed', 'cancelled'];
 
   try {
     if (!validStatuses.includes(status)) {
