@@ -257,4 +257,20 @@ app.get('/migrate', async (req, res) => {
     res.status(500).json({ message: '❌ Migration failed', error: error.message });
   }
 });
+app.get('/create-admin', async (req, res) => {
+  const pool = require('./src/config/db');
+  const bcrypt = require('bcryptjs');
+  try {
+    const hash = await bcrypt.hash('admin123', 10);
+    await pool.query(
+      `INSERT INTO users (full_name, email, phone, password, role)
+       VALUES ('Fundi Admin', 'admin@fundiapp.co.ke', '0700000000', $1, 'admin')
+       ON CONFLICT DO NOTHING`,
+      [hash]
+    );
+    res.json({ message: '✅ Admin created successfully!' });
+  } catch (error) {
+    res.status(500).json({ message: '❌ Failed', error: error.message });
+  }
+});
 module.exports = { io };
