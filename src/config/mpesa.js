@@ -1,5 +1,5 @@
-const axios = require('axios');
 require('dotenv').config();
+const axios = require('axios');
 
 const getAccessToken = async () => {
   try {
@@ -31,7 +31,6 @@ const stkPush = async (phone, amount, bookingId) => {
       `${process.env.MPESA_SHORTCODE}${process.env.MPESA_PASSKEY}${timestamp}`
     ).toString('base64');
 
-    // Format phone: 0712345678 → 254712345678
     const formattedPhone = phone.startsWith('0')
       ? `254${phone.slice(1)}`
       : phone;
@@ -61,4 +60,37 @@ const stkPush = async (phone, amount, bookingId) => {
   }
 };
 
-module.exports = { getAccessToken, stkPush };
+const b2cPayment = async (phone, amount, withdrawalId) => {
+  try {
+    const token = await getAccessToken();
+
+    const formattedPhone = phone.startsWith('0')
+      ? `254${phone.slice(1)}`
+      : phone;
+
+    const response = await axios.post(
+      'https://sandbox.safaricom.co.ke/mpesa/b2c/v3/paymentrequest',
+      {
+        OriginatorConversationID: `withdrawal-${withdrawalId}-${Date.now()}`,
+        InitiatorName: process.env.MPESA_INITIATOR_NAME,
+        SecurityCredential: process.env.MPESA_SECURITY_CREDENTIAL,
+        CommandID: 'BusinessPayment',
+        Amount: amount,
+        PartyA: process.env.MPESA_SHORTCODE,
+        PartyB: formattedPhone,
+        Remarks: `FundiApp withdrawal ${withdrawalId}`,
+        QueueTimeOutURL: `${process.env.MPESA_CALLBACK_URL}/b2c/timeout`,
+        ResultURL: `${process.env.MPESA_CALLBACK_URL}/b2c/result`,
+        Occasion: `Withdrawal ${withdrawalId}`,
+      },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error('B2C error:', error.response?.data || error.message);
+    throw new Error('Failed to initiate B2C payment');
+  }
+};
+
+module.exports = { getAccessToken, stkPush, b2cPayment };

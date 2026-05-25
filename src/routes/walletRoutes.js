@@ -1,12 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { getWallet, getTransactions, withdraw } = require('../controllers/walletController');
+const { getWallet, getTransactions, withdraw, b2cResult, b2cTimeout } = require('../controllers/walletController');
 const { protect } = require('../middleware/authMiddleware');
 const pool = require('../config/db');
 
 router.get('/', protect, getWallet);
 router.get('/transactions', protect, getTransactions);
 router.post('/withdraw', protect, withdraw);
+router.post('/b2c/result', b2cResult);
+router.post('/b2c/timeout', b2cTimeout);
 
 // @desc Get earnings summary
 router.get('/earnings/summary', protect, async (req, res) => {
