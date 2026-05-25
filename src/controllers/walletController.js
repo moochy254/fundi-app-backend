@@ -58,10 +58,9 @@ const withdraw = async (req, res) => {
       return res.status(400).json({ message: 'Minimum withdrawal is KES 100' });
     }
 
-    // Check wallet balance
-    const wallet = await getWalletByProviderId(req.user.id);
+    let wallet = await getWalletByProviderId(req.user.id);
     if (!wallet) {
-      return res.status(404).json({ message: 'Wallet not found' });
+      wallet = await createWallet(req.user.id);
     }
 
     if (parseFloat(wallet.balance) < parseFloat(amount)) {
