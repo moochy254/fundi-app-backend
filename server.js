@@ -97,23 +97,6 @@ io.on('connection', (socket) => {
   });
 });
 
-app.get('/fix-withdrawal', async (req, res) => {
-  const pool = require('./src/config/db');
-  try {
-    await pool.query(`
-      ALTER TABLE withdrawal_requests 
-      DROP CONSTRAINT IF EXISTS withdrawal_requests_status_check;
-      
-      ALTER TABLE withdrawal_requests 
-      ADD CONSTRAINT withdrawal_requests_status_check 
-      CHECK (status IN ('pending', 'approved', 'rejected', 'completed', 'failed'));
-    `);
-    res.json({ message: '✅ Constraint fixed!' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
