@@ -72,13 +72,18 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Find user
     const user = await findUserByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Check password
+    // Check if suspended
+    if (user.is_suspended) {
+      return res.status(403).json({
+        message: `Your account has been suspended. ${user.suspended_reason ? `Reason: ${user.suspended_reason}` : 'Please contact support.'}`
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
